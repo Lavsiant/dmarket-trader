@@ -36,7 +36,8 @@ export class MarketplaceService {
     }
 
     getByFilter(filter: MarketItemsFilter): Observable<MarketItemsResponse> {
-        return this.http.get<MarketItemsResponse>(this.baseApiUrl + `/exchange/v1/market/items?${this.commonParameters}&title=${filter.title}&limit=100&treeFilters=${filter.treeFilter}`)
+        return this.http.get<MarketItemsResponse>(this.baseApiUrl 
+            + `/exchange/v1/market/items?${this.commonParameters}&title=${filter.title}&limit=100&treeFilters=${filter.treeFilter}`)
     }
 
 }

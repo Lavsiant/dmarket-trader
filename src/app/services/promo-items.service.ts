@@ -1,20 +1,18 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { concatMap, flatMap, map, mergeMap, Observable, of, tap } from "rxjs";
+import { excludeWords } from "../data/exclude-promo-words.data";
+import { PromoItem } from "../model/promo-item.model";
 
 export interface PromoItemsResponse {
     total: number;
     objects: PromoItem[];
 }
 
-export interface PromoItem {
-    price: number;
-    title: string;
-}
-
 export interface PromoItemsFilter {
     minPrice?: number;
     maxPrice?: number;
+    isFilterByExcludeWords: boolean;
 }
 
 @Injectable({
@@ -44,7 +42,14 @@ export class PromoItemsService {
             concatMap((response: PromoItemsResponse) => this.get(response.total, 0)),
             map((res: PromoItemsResponse) => {
                 res.objects = res.objects.filter(x => (filter.maxPrice && x.price <= filter.maxPrice || !filter.maxPrice)
-                    && (filter.minPrice && x.price >= filter.minPrice || !filter.maxPrice));                    
+                    && (filter.minPrice && x.price >= filter.minPrice || !filter.maxPrice));
+                
+                res.objects = filter.isFilterByExcludeWords
+                    ? res.objects.filter(x => !excludeWords.includes(x.title))
+                    : res.objects;
+                
+                res.total = res.objects.length;
+
                 return res;
             })
         )
