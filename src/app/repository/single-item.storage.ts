@@ -23,7 +23,7 @@ export class SingleItemStorage<T extends object> {
     };
 
 
-    update(data: T): Observable<void> {
+    update(data: T): Observable<void> { 
         return new Observable(
             (observer: Subscriber<void>) => this.storage.set(this.storageName, data, (error) => {
                 if (error)

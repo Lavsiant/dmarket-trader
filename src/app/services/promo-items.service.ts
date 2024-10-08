@@ -44,8 +44,10 @@ export class PromoItemsService {
                 res.objects = res.objects.filter(x => (filter.maxPrice && x.price <= filter.maxPrice || !filter.maxPrice)
                     && (filter.minPrice && x.price >= filter.minPrice || !filter.maxPrice));
                 
+                const exs = excludeWords;
+
                 res.objects = filter.isFilterByExcludeWords
-                    ? res.objects.filter(x => !excludeWords.includes(x.title))
+                    ? res.objects.filter(x => excludeWords.every(ex => !x.title.includes(ex)))
                     : res.objects;
                 
                 res.total = res.objects.length;

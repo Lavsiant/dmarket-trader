@@ -1,14 +1,19 @@
-<!-- <div>121
-	<div *ngIf="!promoItemsStateService.data"> No fetched data </div>
-	<div *ngIf="promoItemsStateService.data">
-		{{promoItemsStateService.data.total}} items fetched. <br/> Date:{{promoItemsStateService.data.date}}
+<div>
+	<div *ngIf="!promoItemsData"> No fetched data </div>
+	<div *ngIf="promoItemsData">
+		{{promoItemsData.total}} items fetched. <br/> Date:{{promoItemsData.date}}
+		{{promoItemsData.objects[0].price}}
 	</div>
 
 	<div>
-		<button (click)="fetchPromoItems()">Fetch promo items</button>
+		<button (click)="fetchPromoItems()">Fetch promo items</button>		
 	</div>
-</div> -->
+
+	<div>
+		<button (click)="startProcessingData()">Start Processing Data</button>
+	</div>
+</div>
 
 <div>
-	asdasd
+	
 </div>

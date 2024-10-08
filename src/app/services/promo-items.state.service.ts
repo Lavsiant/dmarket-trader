@@ -3,7 +3,7 @@ import { SingleItemStorage } from "../repository/single-item.storage";
 import { PromoItemsFetchedData } from "../model/promo-item.model";
 import { storageNames } from "../data/storage-names.data";
 import { PromoItemsService } from "./promo-items.service";
-import { Observable, tap } from "rxjs";
+import { Observable, of, tap } from "rxjs";
 
 @Injectable({
 	providedIn: 'root'
@@ -13,12 +13,13 @@ export class PromoItemsStateService {
 
     data: PromoItemsFetchedData | null = null;
 
-    constructor(private promoService: PromoItemsService) {
+    constructor() {
 
 	}
 
-    fetch(): Observable<PromoItemsFetchedData> {
-        return this.promoItemsStorage.get().pipe(tap(val => {this.data = val}));
+     fetch(): Observable<PromoItemsFetchedData> {
+        if(this.data) return of(this.data)
+        return this.promoItemsStorage.get().pipe();
     }
 
     update(data: PromoItemsFetchedData): Observable<void> {

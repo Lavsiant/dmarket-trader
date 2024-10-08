@@ -1,3 +1,4 @@
 export const storageNames = {
-    promoItemsData: 'promoItemsData'
+    promoItemsData: 'promoItemsData',
+    userSettings: 'userSettings'
 }
