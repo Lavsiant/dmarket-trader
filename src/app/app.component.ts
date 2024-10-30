@@ -6,7 +6,8 @@ import { SingleItemStorage } from './repository/single-item.storage';
 import { PromoItemsFetchedData } from './model/promo-item.model';
 import { storageNames } from './data/storage-names.data';
 import { PromoItemsStateService } from './services/promo-items.state.service';
-import { HandleProcessor } from './core/marketplace-processor';
+import { MarketplaceProcessor } from './core/marketplace-processor';
+import { take } from 'rxjs';
 
 @Component({
 	selector: 'app-root',
@@ -22,13 +23,14 @@ export class AppComponent implements OnInit {
 		private promoService: PromoItemsService,
 		private marketService: MarketplaceService,
 		private cdr: ChangeDetectorRef,
+		private processor: MarketplaceProcessor,
 		private treeFilterConverter: TreeFilterConverter,
 	) {
 
 	}
 
 	ngOnInit(): void {
-		this.promoItemsStateService.fetch().pipe().subscribe(x => { 
+		this.promoItemsStateService.fetch().pipe().subscribe(x => {
 			this.promoItemsData = x;
 			this.cdr.detectChanges();
 		});
@@ -44,27 +46,15 @@ export class AppComponent implements OnInit {
 				}
 
 				this.promoItemsStateService.update(fetchedData).subscribe();
-
-				const testValue = res.objects[0];
-
-				this.marketService.getByFilter({ title: testValue.title })
-					.subscribe(x => {
-						console.log(x.objects[0]);
-					})
-
-				// const treeFilter: string = this.treeFilterConverter.convertToString({tradeLockTo: 0});
-
-				// this.marketService.getByFilter({title: testValue.title, treeFilter})
-				// 	.subscribe(x => {
-				// 		console.log(x.objects[0]);
-				// 	})
+				this.promoItemsData = fetchedData;	
 			}
 		)
 	}
 
 	startProcessingData() {
-		const processor = new HandleProcessor(this.promoItemsData!.objects, this.treeFilterConverter, this.marketService);
-
-		processor.startProcessing();
+		this.processor.startProcessing(this.promoItemsData!.objects.slice(0, 10)).pipe(take(10)).subscribe(x => {
+			console.log(x);
+		}
+		);
 	}
 }

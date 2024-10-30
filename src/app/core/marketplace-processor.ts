@@ -1,54 +1,92 @@
 import { BehaviorSubject, delay, from, interval, merge, Observable, of, Subject, Subscription } from "rxjs";
 import { PromoItem } from "../model/promo-item.model";
-import { MarketplaceService } from "../services/marketplace-service";
+import { MarketItemsResponse, MarketplaceService } from "../services/marketplace-service";
 import { TreeFilterConverter } from "../services/tree-filter.converter";
-import { take, timeout, zip, zipWith } from "rxjs/operators";;
+import { catchError, filter, map, switchMap, take, takeWhile, timeout, zip, zipWith } from "rxjs/operators";import { ProcessedMarketItem } from "../model/processed-market-item.model";
+import { Injectable } from "@angular/core";
+import { error } from "console";
+;
 
-export class HandleProcessor {
+export class FetchResult {
+    all: MarketItemsResponse;
+    unlocked: MarketItemsResponse;
+    title: string;
 
+    constructor(title: string) {
+        this.title = title;
+        this.all = new MarketItemsResponse();
+        this.unlocked = new MarketItemsResponse();
+    }
+}
+
+
+@Injectable({
+	providedIn: 'root'
+})
+export class MarketplaceProcessor {
     currentIndex: number = 0;
     subject = new Subject<PromoItem>();
     subscription: Subscription;
 
-    resupts: any = [];
+    stopRequested: boolean = false;
+    sellKoef: number = 0.98;
+    results: any = [];
 
-    constructor(private promoItems: PromoItem[],
+
+    constructor(
         private treeFilterConverter: TreeFilterConverter,
         private marketService: MarketplaceService
-    ){
-        this.subject.pipe(delay(1000)).subscribe((promoItem: PromoItem) => {
-            const treeFilter: string = this.treeFilterConverter.convertToString({tradeLockTo: 0});
-
-             zip(
-                this.marketService.getByFilter({title: promoItem.title}),
-                this.marketService.getByFilter({title: promoItem.title, treeFilter}),
-                (_, all, unlocked) => { return { all , unlocked}}
-            )(of(1)).subscribe(
-                pair => {
-                    console.log(pair);
-                    this.resupts.push({ title: promoItem.title, allItems: pair.all, unlockedItems: pair.unlocked })
-                }
-            );
-        })
+    ) {
     }
 
-    startProcessing() {
-
-        interval(2000).pipe(take(5)).subscribe(
-            x => {
-                this.subject.next(this.promoItems[x - 1]);
-            }
-        )
-
-        // from(this.promoItems).pipe(
-        //     take(5),
-        //     timeout(1000),
-            
-        // ).subscribe(x => this.subject.next(x))
+    startProcessing(promoItems: PromoItem[]): Observable<ProcessedMarketItem> {
+        return interval(500).pipe(
+            take(promoItems.length),
+            takeWhile((_, index) => !this.stopRequested || index <= promoItems.length),
+            map(index => promoItems[index]),
+            switchMap(promoItem => this.fetchItem(promoItem)),
+            filter(fetchedData => (fetchedData.all && fetchedData.all.objects.length > 0 && fetchedData.unlocked && fetchedData.unlocked.objects.length > 0)),
+            map((fetchedData) => this.processFetchedData(fetchedData))
+        )          
     }
 
     checkData() {
 
     }
 
+    fetchItem(item: PromoItem): Observable<FetchResult> {
+        const treeFilter: string = this.treeFilterConverter.convertToString({ tradeLockTo: 0 });
+
+        return zip(
+            this.marketService.getByFilter({ title: item.title }).pipe(catchError(error => this.handleFetchError(error))),
+            this.marketService.getByFilter({ title: item.title, treeFilter }).pipe(catchError(error => this.handleFetchError(error))),
+            (_, all, unlocked) => { return { all, unlocked, title: item.title } }
+        )(of(1))
+    }
+
+    processFetchedData(fetchResult: FetchResult): ProcessedMarketItem {
+        const processedMarketItem: ProcessedMarketItem = new ProcessedMarketItem(fetchResult.all, fetchResult.unlocked, fetchResult.title);
+        processedMarketItem.profit = this.calculateProfit(processedMarketItem);
+        processedMarketItem.itemsBetween = fetchResult.all.objects.findIndex(x => x.extra.tradeLockDuration === 0);
+        processedMarketItem.linkToAllItems = this.marketService.getDmarketUILinkForItem(processedMarketItem.title, false);
+        processedMarketItem.linkToUnlockedItems = this.marketService.getDmarketUILinkForItem(processedMarketItem.title, true);
+        processedMarketItem.unlockSoonPrices = this.getUnlockSoonPrices(fetchResult.all);
+
+        return processedMarketItem;
+    }
+
+    calculateProfit(item: ProcessedMarketItem): number {
+        if(!item.lowestUnlockedPrice) return 0;
+        return Math.round((item.lowestUnlockedPrice * this.sellKoef) - item.firstPrice);
+    }
+
+    getUnlockSoonPrices(allResponse: MarketItemsResponse): number[] {
+        return allResponse.objects.filter(x => x.extra.tradeLockDuration <= 2).slice(0,5).map(x => +x.price.USD);
+
+    }
+
+    handleFetchError(error: any): Observable<MarketItemsResponse> {
+        console.error(error);
+        return of(new MarketItemsResponse());
+    }
 }

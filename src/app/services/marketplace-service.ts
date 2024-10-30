@@ -2,10 +2,14 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { concatMap, flatMap, map, mergeMap, Observable, of, tap } from "rxjs";
 
-export interface MarketItemsResponse {
+export class MarketItemsResponse {
     total: { items: number };
-    objects: MarketItem[];
+    objects: MarketItem[] = [];
     cursor: string;
+
+    constructor() {
+        this.total = { items: 0};
+    }
 }
 
 export interface MarketItem {
@@ -16,7 +20,7 @@ export interface MarketItem {
 
 interface Extra {
     viewAtSteam: string;
-    tradeLock: number;
+    tradeLockDuration: number;
 }
 
 export interface MarketItemsFilter {
@@ -29,6 +33,7 @@ export interface MarketItemsFilter {
 })
 export class MarketplaceService {
     private baseApiUrl: string = 'https://api.dmarket.com';
+    private publicDmarketUrl: string = 'https://dmarket.com/ru/ingame-items/item-list/csgo-skins';
     private commonParameters: string = 'gameId=a8db&currency=USD&orderBy=price&orderDir=asc';
 
     constructor(private http: HttpClient) {
@@ -40,5 +45,8 @@ export class MarketplaceService {
             + `/exchange/v1/market/items?${this.commonParameters}&title=${filter.title}&limit=100&treeFilters=${filter.treeFilter}`)
     }
 
-}
+    getDmarketUILinkForItem(title: string, isUnlocked: boolean): string {
+        return `${this.publicDmarketUrl}?title=${encodeURIComponent(title)}${isUnlocked ? '&tradeLockTo=0' : ``}`
+    }
 
+}

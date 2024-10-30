@@ -5,6 +5,7 @@ import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import { AppComponent } from './app.component';
 import { BrowserModule } from '@angular/platform-browser';
 import { AddHeaderKeysInterceptor } from './interceptors/key-headers.interceptor';
+import { TableModule } from 'primeng/table';
 
 @NgModule({
   declarations: [
@@ -13,7 +14,8 @@ import { AddHeaderKeysInterceptor } from './interceptors/key-headers.interceptor
   imports: [
     BrowserModule,
     AppRoutingModule,
-    HttpClientModule
+    HttpClientModule,
+    TableModule
   ],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: AddHeaderKeysInterceptor, multi: true },
