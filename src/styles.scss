@@ -12,3 +12,14 @@
         /* CSS to Reset */
     }
 }
+
+.link-style {
+    color: #007bff; /* Blue color for links */
+    text-decoration: none; /* Remove underline */
+    cursor: pointer; /* Pointer cursor on hover */
+}
+
+.link-style:hover {
+    text-decoration: underline; /* Add underline on hover */
+    color: #0056b3; /* Darker blue on hover */
+}

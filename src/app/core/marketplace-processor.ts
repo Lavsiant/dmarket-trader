@@ -24,68 +24,68 @@ export class FetchResult {
 	providedIn: 'root'
 })
 export class MarketplaceProcessor {
-    currentIndex: number = 0;
-    subject = new Subject<PromoItem>();
-    subscription: Subscription;
+    private currentIndex: number = 0;
+    private subject = new Subject<PromoItem>();
+    private subscription: Subscription;
 
-    stopRequested: boolean = false;
-    sellKoef: number = 0.98;
-    results: any = [];
-
+    private stopRequested: boolean = false;
+    private sellKoef: number = 0.98;
+    private results: any = [];
 
     constructor(
         private treeFilterConverter: TreeFilterConverter,
         private marketService: MarketplaceService
-    ) {
-    }
+    ) {}
 
-    startProcessing(promoItems: PromoItem[]): Observable<ProcessedMarketItem> {
-        return interval(500).pipe(
+    public startProcessing(promoItems: PromoItem[]): Observable<ProcessedMarketItem> {
+        this.stopRequested = false;
+        return interval(700).pipe(
             take(promoItems.length),
-            takeWhile((_, index) => !this.stopRequested || index <= promoItems.length),
+            takeWhile((_, index) => !this.stopRequested && index < promoItems.length),
             map(index => promoItems[index]),
             switchMap(promoItem => this.fetchItem(promoItem)),
             filter(fetchedData => (fetchedData.all && fetchedData.all.objects.length > 0 && fetchedData.unlocked && fetchedData.unlocked.objects.length > 0)),
-            map((fetchedData) => this.processFetchedData(fetchedData))
-        )          
+            map((fetchedData) => this.processFetchedData(fetchedData))  
+        );
     }
 
-    checkData() {
-
+    public stopProcessing(): void {
+        this.stopRequested = true;
     }
 
-    fetchItem(item: PromoItem): Observable<FetchResult> {
+    private checkData() {}
+
+    private fetchItem(item: PromoItem): Observable<FetchResult> {
         const treeFilter: string = this.treeFilterConverter.convertToString({ tradeLockTo: 0 });
 
         return zip(
             this.marketService.getByFilter({ title: item.title }).pipe(catchError(error => this.handleFetchError(error))),
             this.marketService.getByFilter({ title: item.title, treeFilter }).pipe(catchError(error => this.handleFetchError(error))),
             (_, all, unlocked) => { return { all, unlocked, title: item.title } }
-        )(of(1))
+        )(of(1));
     }
 
-    processFetchedData(fetchResult: FetchResult): ProcessedMarketItem {
+    private processFetchedData(fetchResult: FetchResult): ProcessedMarketItem {
         const processedMarketItem: ProcessedMarketItem = new ProcessedMarketItem(fetchResult.all, fetchResult.unlocked, fetchResult.title);
         processedMarketItem.profit = this.calculateProfit(processedMarketItem);
         processedMarketItem.itemsBetween = fetchResult.all.objects.findIndex(x => x.extra.tradeLockDuration === 0);
         processedMarketItem.linkToAllItems = this.marketService.getDmarketUILinkForItem(processedMarketItem.title, false);
         processedMarketItem.linkToUnlockedItems = this.marketService.getDmarketUILinkForItem(processedMarketItem.title, true);
         processedMarketItem.unlockSoonPrices = this.getUnlockSoonPrices(fetchResult.all);
-
+        processedMarketItem.id = fetchResult.title;
         return processedMarketItem;
     }
 
-    calculateProfit(item: ProcessedMarketItem): number {
-        if(!item.lowestUnlockedPrice) return 0;
-        return Math.round((item.lowestUnlockedPrice * this.sellKoef) - item.firstPrice);
+    private calculateProfit(item: ProcessedMarketItem): number {
+        if (!item.lowestUnlockedPrice) return 0;
+        return Math.round((item.lowestUnlockedPrice * this.sellKoef) - item.lowestPrice);
     }
 
-    getUnlockSoonPrices(allResponse: MarketItemsResponse): number[] {
-        return allResponse.objects.filter(x => x.extra.tradeLockDuration <= 2).slice(0,5).map(x => +x.price.USD);
-
+    private getUnlockSoonPrices(allResponse: MarketItemsResponse): number[] {
+        return allResponse.objects.filter(x => x.extra.tradeLockDuration <= 2).slice(0, 5).map(x => +x.price.USD);
     }
 
-    handleFetchError(error: any): Observable<MarketItemsResponse> {
+    private handleFetchError(error: any): Observable<MarketItemsResponse> {
         console.error(error);
         return of(new MarketItemsResponse());
     }

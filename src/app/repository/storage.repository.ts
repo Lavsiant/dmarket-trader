@@ -1,107 +1,93 @@
-import { rejects } from "assert";
+import { Observable, of, throwError } from "rxjs";
+import { from } from "rxjs";
+import { map, catchError, switchMap } from "rxjs/operators";
 import { StorageServiceDefinition } from "./storage.service.definition";
 import { IIdentifiedEntity } from "../model/identifier-entity.model";
 
-
-export class StorageRepository<T extends IIdentifiedEntity<string>>  {
+export class StorageRepository<T extends IIdentifiedEntity<string>> {
     storageName: string;
     storage: StorageServiceDefinition;
 
     constructor(storageName: string) {
         this.storageName = storageName;
 
-        const remote = window.require('@electron/remote')
+        const remote = window.require('@electron/remote');
         this.storage = remote.require('electron-json-storage');
     }
 
-    getAllData(): Promise<T[]> {
-        return new Promise(resolve => {
+    getAllData(): Observable<T[]> {
+        return new Observable<T[]>((observer) => {
             this.storage.get(this.storageName, (error, data: T[]) => {
-                resolve(data)
+                if (error) {
+                    observer.error(error);
+                } else {
+                    observer.next(data || []);   
+                    observer.complete();
+                }
             });
         });
     }
 
-    updateData(data: T[]): Promise<void> {
-        return new Promise((resolve, reject) => {
+    updateData(data: T[]): Observable<void> {
+        return new Observable<void>((observer) => {
             this.storage.set(this.storageName, data, (error) => {
                 if (error) {
-                    reject(error);
+                    observer.error(error);
                 } else {
-                    resolve();
+                    observer.next();
+                    observer.complete();
                 }
             });
         });
     }
 
-    add(entity: T): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const getAllDataPromise: Promise<T[]> = this.getAllData();
-
-            getAllDataPromise.then((data: T[]) => {
+    add(entity: T): Observable<void> {
+        return this.getAllData().pipe(
+            map((data: T[]) => {
                 data = data && Array.isArray(data) ? data : [];
                 data.push(entity);
-
-                this.updateData(data)
-                    .then(() => {
-                        resolve();
-                    }).catch(error => {
-                        reject(error);
-                    });
-            });
-        });
+                return data;
+            }),
+            switchMap((updatedData: T[]) => this.updateData(updatedData))
+        );
     }
 
-    get(id: string): Promise<T> {
-        return new Promise((resolve, reject) => {
-            this.storage.get(this.storageName, (error, data: T[]) => {
+    get(id: string): Observable<T | null> {
+        return this.getAllData().pipe(
+            map((data: T[]) => {
                 const entity = this.findById(data, id);
-                if (!entity) {
-                    reject('Not found');
-                } else {
-                    resolve(entity);
-                }
-            });
-        });
+                return entity ? entity : null;              
+            }),
+            catchError((error) => throwError(() => error))
+        );
     }
 
-    update(entity: T): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const getAllDataPromise: Promise<T[]> = this.getAllData();
-
-            getAllDataPromise.then((data: T[]) => {
+    update(entity: T): Observable<void> {
+        return this.getAllData().pipe(
+            map((data: T[]) => {
                 data = data && Array.isArray(data) ? data : [];
                 const indexToUpdate = data.findIndex(x => x.id === entity.id);
+                if (indexToUpdate === -1) {
+                    throw new Error('Entity not found');
+                }
                 data[indexToUpdate] = entity;
-
-                this.updateData(data)
-                    .then(() => {
-                        resolve();
-                    }).catch(error => {
-                        reject(error);
-                    });
-            });
-        })
+                return data;
+            }),
+            switchMap((updatedData: T[]) => this.updateData(updatedData))
+        );
     }
 
-    delete(id: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const getAllDataPromise: Promise<T[]> = this.getAllData();
-
-            getAllDataPromise.then((data: T[]) => {
+    delete(id: string): Observable<void> {
+        return this.getAllData().pipe(
+            map((data: T[]) => {
                 data = data && Array.isArray(data) ? data.filter(x => x.id !== id) : [];
-                this.updateData(data)
-                    .then(() => {
-                        resolve();
-                    }).catch(error => {
-                        reject(error);
-                    });
-            });
-        })
+                return data;
+            }),
+            switchMap((updatedData: T[]) => this.updateData(updatedData))
+        );
     }
 
-    private findById(data: T[], id: string) {
+    private findById(data: T[], id: string): T | undefined {
         return data.find(x => x.id === id);
     }
-
 }

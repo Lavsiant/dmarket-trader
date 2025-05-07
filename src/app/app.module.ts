@@ -6,16 +6,20 @@ import { AppComponent } from './app.component';
 import { BrowserModule } from '@angular/platform-browser';
 import { AddHeaderKeysInterceptor } from './interceptors/key-headers.interceptor';
 import { TableModule } from 'primeng/table';
+import { CurrencyFormatPipe } from './pipes/dmarket-currency-formatter.pipe';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 @NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    CurrencyFormatPipe
   ],
   imports: [
     BrowserModule,
     AppRoutingModule,
     HttpClientModule,
-    TableModule
+    TableModule,
+    BrowserAnimationsModule
   ],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: AddHeaderKeysInterceptor, multi: true },
